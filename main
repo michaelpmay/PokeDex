@@ -1,0 +1,190 @@
+from gpiozero import Button
+import picamera
+import datetime as date
+from signal import pause
+from time import sleep
+import os
+import pathlib
+
+ioPin1=4
+ioPin2=17
+ioPin3=27
+
+class MetaData:
+    def __init__(self):
+        self.is_movement=None
+        
+    def getMetaData(self):
+        return "movement_"+self.is_movement
+
+class NatureViewerGui:
+    def __init__(self):
+        natview=NatureViewer()
+        
+class NatureViewer:
+    def __init__(self):
+        self.camera=Camera()
+        self.button1=ClickButton(ioPin1)
+        self.button2=ClickButton(ioPin2)
+        self.button3=ClickButton(ioPin3)
+        pass
+   
+    
+    def mainloop(self):
+        while 1:
+            self.askRecording()
+            
+    def askRecording(self):
+        if self.button1.getState()==True:
+            self.camera.startPreview()
+            self.askToRecord()
+    
+    def startPreview(self):
+        self.camera.startPreview()
+        
+    def stopPreview(self):
+        self.camera.stopPreview()
+        
+    def askToRecord(self):
+        print("Do you want to record [y/n]")
+        response=self.getResponse23()
+        if response==2:
+            self.camera.startTimedRecord(10)
+            self.camera.stopPreview()
+            metaData=self.askForMetaData()
+            self.save(metaData)
+            
+        if response==3:
+            self.camera.stopPreview()
+        pass
+        
+    def askForMetaData(self):
+        meta = MetaData()
+        print ("Did you see Movement?[y/n]")
+        response = self.getResponse23()
+        meta.is_movement = response
+        if response == 2:
+            meta.is_movement = 'True'
+        if response == 3:
+            meta.is_movement = 'False'
+        return meta
+    
+    def save(self,metaData):
+        fileSystem = FileSystem()
+        fileSystem.saveVideoWithMetaData(metaData)
+        
+    def getResponse23(self):
+        while 1:
+            response2=self.button2.getState()
+            response3=self.button3.getState()
+            if response2==1:
+                print('2')
+                return 2
+            if response3==1:
+                print('3')
+                return 3
+    
+class ToggleButton:
+    def __init__(self,gpio):
+        self.button=Button(gpio);
+        self.state=[False];
+        state=self.is_pressed()
+        self.previousState=[state]
+        self.previousState[0]
+        pass
+    def getState(self):
+        currentState=self.is_pressed()
+        if ((self.previousState[0]==False)&(currentState==True)):
+            self.swapToggleState()
+        self.previousState[0]=currentState
+        return self.state
+    def swapToggleState(self):
+        if (self.state[0]==True):
+            self.state[0]=False
+        else:
+            self.state[0]=True
+        pass
+    def is_pressed(self):
+        return self.button.is_pressed
+    
+class ClickButton:
+    def __init__(self,gpio):
+        self.button=Button(gpio)
+        self.state=False;
+        pass
+    def getState(self):
+        return self.is_pressed()
+    def is_pressed(self):
+        return self.button.is_pressed
+        
+class Camera:
+    def __init__(self):
+        self.cam=picamera.PiCamera();
+        self.previewResolution=(128,128)
+        self.fullResolution=(1920,1080)
+        self.cam.resolution=self.fullResolution
+        
+    def capture(self):
+        self.cam.start_recording("Temp.h264")
+        self.cam.wait_recording(self.videoLength)
+        self.cam.stop_recording()
+        pass
+        
+    def startPreview(self):
+        self.cam.resolution = self.previewResolution
+        self.cam.start_preview()
+        pass
+    
+    def stopPreview(self):
+        self.cam.stop_preview()
+        pass
+    
+    def startTimedRecord(self,videoLength):
+        self.cam.start_recording("Temp.h264")
+        self.cam.wait_recording(videoLength)
+        self.cam.stop_recording()
+        pass
+        
+class FileSystem:
+    def __init__(self):
+        self.folder="~/Videos/"
+        
+    def saveVideo(self):
+        name=self.getUniqueName()
+        self.rename(self.getOldName())
+        
+    def saveVideoWithMetaData(self,metaData):
+        name=self.getUniqueNameWithMetaData(metaData)
+        self.rename(self.getOldName(),self.folder+name)
+    
+    def getUniqueName(self):
+        timeStamp=self.getTimestamp()
+        meta=self.getMetaData()
+        name='vid_'+timeStamp+'_'+meta+'.h264'
+        return name
+    
+    def getUniqueNameWithMetaData(self,metaData):
+        timeStamp=self.getTimestamp()
+        metaData=metaData.getMetaData()
+        name='vid_'+timeStamp+'_'+metaData+'.h264'
+        return name
+        
+    def getTimestamp(self):
+        datetimer=date.datetime
+        return datetimer.now().isoformat()
+    
+    def getOldName(self):
+        return "Temp.h264"
+    
+    def getMetaData(self,metadata):
+        return metaData.getMetaData
+    
+    def rename(self,name,newName):
+        os.system("mv "+name+" "+newName)
+        
+natview=NatureViewer();
+filesystem=FileSystem()
+#filesystem.saveVideo()
+while 1:
+    natview.mainloop();
+

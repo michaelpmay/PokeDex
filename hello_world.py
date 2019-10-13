@@ -1,9 +1,9 @@
 import sys
 import random
-from PySide2.QtCore import *
-from PySide2.QtWidgets import *
-from PySide2.QtMultimedia import *
-from PySide2.QtMultimediaWidgets import *
+from PySide.QtCore import *
+from PySide.QtWidgets import *
+from PySide.QtMultimedia import *
+from PySide.QtMultimediaWidgets import *
 
 
 class MainWindow(QMainWindow):
