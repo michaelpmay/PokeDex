@@ -148,7 +148,10 @@ class FileSystem:
 
 class Camera:
     def __init__(self):
-        self.cam=picamera.PiCamera();
+        try:
+            self.cam=picamera.PiCamera()
+        except:
+            self.cam=TestCam()
         self.previewResolution=(128,128)
         self.fullResolution=(1920,1080)
         self.cam.resolution=self.fullResolution
@@ -173,9 +176,22 @@ class Camera:
         self.cam.wait_recording(videoLength)
         self.cam.stop_recording()
         pass
-    
+class TestCam:
+    def start_recording(self,name):
+        pass
+    def stop_recording(self):
+        pass
+    def wait_recording(self,time):
+        pass
+    def start_preview(self):
+        pass
+    def stop_preview(self):
+        pass
+    def capture(self,output,formatType):
+        pass
 class CameraDisplay(QtGui.QLabel):
     resolution=(1280,720)
+    output=np.zeros((resolution[1],resolution[0],3),dtype=np.uint8)
     def __init__(self,args):
         super(CameraDisplay,self).__init__(args)
         self.camera=Camera()
@@ -184,30 +200,25 @@ class CameraDisplay(QtGui.QLabel):
         qImg=self.snapQImage()
         self.setPixmap(QtGui.QPixmap.fromImage(qImg))
     def snapQImage(self):
-        output=np.zeros((self.resolution[1],self.resolution[0],3),dtype=np.uint8)
-        self.camera.cam.framerate=24
-        self.camera.cam.capture(output,'rgb')
-        #output=np.roll(output,-1)
-        qImg=QImage(output.data,self.resolution[0],self.resolution[1], QtGui.QImage.Format_RGB888)
+        self.camera.cam.capture(self.output,'rgb')
+        qImg=QImage(self.output.data,self.resolution[0],self.resolution[1], QtGui.QImage.Format_RGB888)
         return qImg
     
-class ThreadCameraDisplay(QThread):
-    def __init__(self,parent=None):
-        QThread.__init__(self,parent)
-        self.exiting=False
+class Worker(QRunnable):
+    def __init__(self,fn,*args,**kwargs):
+        super(Worker,self).__init__()
+        self.fn = fn
+        self.args=args
+        self.kwargs=kwargs
     def run(self):
-        while self.exiting==False:
-            self.update
-            
-    def update(self):
-        pass
-    
+        result=self.fn(*self.args,**self.kwargs)
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.filesystem=FileSystem()
         self.startUI()
     def startUI(self):
+        self.threadpool=QThreadPool()
         self.button1=QPushButton('Begin Recording',self)
         self.button1.move(50,500)
         self.button1.setShortcut('R')
@@ -236,10 +247,14 @@ class MainWindow(QWidget):
         timer.start(100)
         self.cDisplay.updateFrame()
         self.show()
+    def queue(self,fn,*args,**kwargs):
+        worker=Worker(fn,args,awargs)
+        self.threadpool.start(worker)
     def eventBeginRecord(self):
         self.recordLabel.setText('Recording...')
         self.recordLabel.setStyleSheet('QLabel {color:red; font: bold 16pt;}')
         self.recordLabel.update()
+        QApplication.processEvents()
         self.cDisplay.camera.startTimedRecord(15,'vid.h264')
         self.eventInputMetaDataTree()
     def eventInputMetaDataTree(self):
